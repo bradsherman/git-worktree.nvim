@@ -87,6 +87,8 @@ edit the wrong files.
 
 `autopush`: When creating a new worktree, it will push the branch to the upstream then perform a `git rebase`
 
+`fetch_on_create`: When creating a new worktree, do a git fetch. Defaults to true
+
 ```lua
 require("git-worktree").setup({
     change_directory_command = <str> -- default: "cd",
@@ -94,6 +96,7 @@ require("git-worktree").setup({
     update_on_change_command = <str> -- default: "e .",
     clearjumps_on_change = <boolean> -- default: true,
     autopush = <boolean> -- default: false,
+    fetch_on_create = <boolean> -- default: true,
 })
 ```
 
@@ -101,11 +104,15 @@ require("git-worktree").setup({
 
 Three primary functions should cover your day-to-day.
 
-The path can be either relative from the git root dir or absoulut path to the worktree.
+The path can be either relative from the git root dir or absoulute path to the worktree.
 
 ```lua
--- Creates a worktree.  Requires the path, branch name, and the upstream
--- Example:
+:-- Creates a worktree.  Requires the path, branch name, and the upstream,
+-- Optionally the base branch from which to create the new worktree and branch can be added
+-- Examples:
+-- Creating new worktree and branch `feat-69` based on develop branch to path `feat-69`
+:lua require("git-worktree").create_worktree("feat-69", "feat-69", "origin", "develop")
+-- Creating new worktree `master` based on master to path `feat-69`
 :lua require("git-worktree").create_worktree("feat-69", "master", "origin")
 
 -- switches to an existing worktree.  Requires the path name
@@ -125,6 +132,49 @@ Add the following to your vimrc to load the telescope extension
 require("telescope").load_extension("git_worktree")
 ```
 
+### Configuration
+Enjoy the customizability of `telescope.nvim` using all your favorite configurations as well as additional options outlined in the example below.
+
+```lua
+require('telescope').setup{
+  defaults = {
+      ...
+  },
+  pickers = {
+    ...
+  },
+  extensions = {
+    git_worktree = {
+      prompt_title = "Super cool prompt title",
+      theme = "dropdown",
+      path_display = { "shorten" },
+      layout_config = {
+        width = 70,
+        height = 20,
+      },
+
+      -- determine what worktree items to show, in order and their corresponding width
+      -- possible items to show are `branch`, `path`, `sha`
+      items = {
+        { "branch", 50 },
+        { "sha", 20 },
+      },
+      -- set custom bindings for worktree related actions
+      mappings = {
+        ["i"] = {
+            ["<C-d>"] = require("telescope").extensions.git_worktree.actions.delete_worktree,
+            ["<C-f>"] = require("telescope").extensions.git_worktree.actions.toggle_forced_deletion,
+        },
+        ["n"] = {
+            ["<C-d>"] = require("telescope").extensions.git_worktree.actions.delete_worktree,
+            ["<C-f>"] = require("telescope").extensions.git_worktree.actions.toggle_forced_deletion,
+        },
+      }
+    }
+  }
+}
+```
+
 ### Switch and Delete a worktrees
 To bring up the telescope window listing your workspaces run the following
 
@@ -141,7 +191,7 @@ To bring up the telescope window to create a new worktree run the following
 ```lua
 :lua require('telescope').extensions.git_worktree.create_git_worktree()
 ```
-First a telescope git branch window will appear. Presing enter will choose the selected branch for the branch name. If no branch is selected, then the prompt will be used as the branch name.
+First a telescope git branch window will appear. Pressing enter will choose the selected branch for the branch name. If no branch is selected, then the prompt will be used as the branch name.
 
 After the git branch window, a prompt will be presented to enter the path name to write the worktree to.
 

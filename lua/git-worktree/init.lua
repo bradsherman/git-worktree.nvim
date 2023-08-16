@@ -315,15 +315,18 @@ local function create_worktree(path, branch, upstream, found_branch)
         worktree_path = Path:new(git_worktree_root, path):absolute()
     end
 
-    local fetch = Job:new({
-        "git",
-        "fetch",
-        "--all",
-        cwd = worktree_path,
-        on_start = function()
-            status:next_status("git fetch --all (This may take a moment)")
-        end,
-    })
+    local fetch
+    if M._config.fetch_on_create then
+        fetch = Job:new({
+            "git",
+            "fetch",
+            "--all",
+            cwd = worktree_path,
+            on_start = function()
+                status:next_status("git fetch --all (This may take a moment)")
+            end,
+        })
+    end
 
     local set_branch_cmd = "git"
     local set_branch_args = { "branch", string.format("--set-upstream-to=%s/%s", upstream, branch) }
@@ -359,8 +362,12 @@ local function create_worktree(path, branch, upstream, found_branch)
     })
 
     if upstream ~= nil then
-        create:and_then_on_success(fetch)
-        fetch:and_then_on_success(set_branch)
+        if M._config.fetch_on_create then
+            create:and_then_on_success(fetch)
+            fetch:and_then_on_success(set_branch)
+        else
+            create:and_then_on_success(set_branch)
+        end
 
         if M._config.autopush then
             -- These are "optional" operations.
@@ -373,7 +380,9 @@ local function create_worktree(path, branch, upstream, found_branch)
         end
 
         create:after_failure(failure("create_worktree", create.args, git_worktree_root))
-        fetch:after_failure(failure("create_worktree", fetch.args, worktree_path))
+        if M._config.fetch_on_create then
+            fetch:after_failure(failure("create_worktree", fetch.args, worktree_path))
+        end
 
         set_branch:after_failure(failure("create_worktree", set_branch.args, worktree_path, true))
 
@@ -558,6 +567,7 @@ M.setup = function(config)
         confirm_telescope_deletions = false,
         -- should this default to true or false?
         autopush = false,
+        fetch_on_create = true,
     }, config)
 end
 

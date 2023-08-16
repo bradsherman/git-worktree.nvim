@@ -107,8 +107,12 @@ Three primary functions should cover your day-to-day.
 The path can be either relative from the git root dir or absoulute path to the worktree.
 
 ```lua
--- Creates a worktree.  Requires the path, branch name, and the upstream
--- Example:
+:-- Creates a worktree.  Requires the path, branch name, and the upstream,
+-- Optionally the base branch from which to create the new worktree and branch can be added
+-- Examples:
+-- Creating new worktree and branch `feat-69` based on develop branch to path `feat-69`
+:lua require("git-worktree").create_worktree("feat-69", "feat-69", "origin", "develop")
+-- Creating new worktree `master` based on master to path `feat-69`
 :lua require("git-worktree").create_worktree("feat-69", "master", "origin")
 
 -- switches to an existing worktree.  Requires the path name

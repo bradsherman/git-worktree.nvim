@@ -83,29 +83,6 @@ wt_actions.delete_worktree = function(prompt_bufnr)
     end
 end
 
-local create_input_prompt = function()
-    --[[
-    local window = Window.centered({
-        width = 30,
-        height = 1
-    })
-    vim.api.nvim_buf_set_option(window.bufnr, "buftype", "prompt")
-    vim.fn.prompt_setprompt(window.bufnr, "Worktree Location: ")
-    vim.fn.prompt_setcallback(window.bufnr, function(text)
-        vim.api.nvim_win_close(window.win_id, true)
-        vim.api.nvim_buf_delete(window.bufnr, {force = true})
-        cb(text)
-    end)
-
-    vim.api.nvim_set_current_win(window.win_id)
-    vim.fn.schedule(function()
-        vim.nvim_command("startinsert")
-    end)
-    --]]
-    --
-    return vim.fn.input("Path to subtree > ")
-end
-
 local use_current_worktree_as_base_prompt = function()
     return vim.fn.confirm("Use current worktree as base?", "&Yes\n&No", 1) == 1
 end
@@ -196,7 +173,10 @@ local create_worktree = function(opts)
                 return
             end
 
-            local name = create_input_prompt()
+            -- for some reason this prompt immediately returns so we have to add another one to
+            -- actually accept user input
+            vim.fn.input("Path to subtree > ", branch)
+            local name = vim.fn.input("Path to subtree > ", branch)
             if name == "" then
                 name = branch
             end
@@ -225,11 +205,6 @@ local telescope_git_worktree = function(opts)
     opts = get_default_opts(opts)
     local output = utils.get_os_command_output({ "git", "worktree", "list" })
     local results = {}
-    -- local widths = {
-    --     path = 0,
-    --     sha = 0,
-    --     branch = 0,
-    -- }
 
     local items = vim.F.if_nil(opts.items, {
         { "branch", 0 },

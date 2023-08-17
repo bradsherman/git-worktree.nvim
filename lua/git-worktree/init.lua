@@ -159,7 +159,6 @@ local function change_dirs(path)
 
     local previous_worktree = current_worktree_path
 
-    -- vim.loop.chdir(worktree_path)
     if Path:new(worktree_path):exists() then
         local cmd = string.format("%s %s", M._config.change_directory_command, worktree_path)
         status:log().debug("Changing to directory " .. worktree_path)
@@ -367,6 +366,8 @@ local function create_worktree(path, branch, upstream, found_branch, base_branch
         })
     end
 
+    -- skip setting branch if the branch was not found - otherwise we'll get an error
+    -- that the upstream branch does not exist
     local set_branch_cmd = "git"
     local set_branch_args = { "branch", string.format("--set-upstream-to=%s/%s", upstream, branch) }
     local set_branch = Job:new({
@@ -403,29 +404,44 @@ local function create_worktree(path, branch, upstream, found_branch, base_branch
     current_branch_job:add_on_exit_callback(function()
         local create = create_worktree_job(path, branch, found_branch, base_branch)
         if upstream ~= nil then
+            local end_of_job_chain = create
             if M._config.fetch_on_create then
-                create:and_then_on_success(fetch)
-                fetch:and_then_on_success(set_branch)
-            else
-                create:and_then_on_success(set_branch)
+                end_of_job_chain:and_then_on_success(fetch)
+                fetch:after_failure(failure("create_worktree", fetch.args, worktree_path))
+                end_of_job_chain = fetch
+            end
+
+            -- skip setting branch if the branch was not found - otherwise we'll get an error
+            -- that the upstream branch does not exist
+            if found_branch then
+                end_of_job_chain:and_then_on_success(set_branch)
+                set_branch:after_failure(failure("create_worktree", set_branch.args, worktree_path, true))
+                end_of_job_chain = set_branch
             end
 
             if M._config.autopush then
                 -- These are "optional" operations.
                 -- We have to figure out how we want to handle these...
-                set_branch:and_then(set_push)
-                set_push:and_then(rebase)
-                set_push:after_failure(failure("create_worktree", set_branch.args, worktree_path, true))
+                if found_branch then
+                    end_of_job_chain:and_then(set_push)
+                else
+                    end_of_job_chain:and_then_on_success(set_push)
+                end
+                set_push:after_failure(failure("create_worktree", set_push.args, worktree_path, true))
+                end_of_job_chain = set_push
+
+                end_of_job_chain:and_then(rebase)
             else
-                set_branch:and_then(rebase)
+                if found_branch then
+                    end_of_job_chain:and_then(rebase)
+                else
+                    end_of_job_chain:and_then_on_success(rebase)
+                end
             end
+
+            end_of_job_chain = rebase
 
             create:after_failure(failure("create_worktree", create.args, git_worktree_root))
-            if M._config.fetch_on_create then
-                fetch:after_failure(failure("create_worktree", fetch.args, worktree_path))
-            end
-
-            set_branch:after_failure(failure("create_worktree", set_branch.args, worktree_path, true))
 
             rebase:after(function()
                 if rebase.code ~= 0 then

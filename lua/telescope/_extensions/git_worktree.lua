@@ -270,7 +270,8 @@ local telescope_git_worktree = function(opts)
             if item[1] == "branch" then
                 table.insert(foo, { entry[item[1]], "TelescopeResultsIdentifier" })
             elseif item[1] == "path" then
-                table.insert(foo, { utils.transform_path(opts, entry[item[1]]) })
+                local path, _ = utils.transform_path(opts, entry[item[1]])
+                table.insert(foo, { path })
             elseif item[1] == "sha" then
                 table.insert(foo, { entry[item[1]] })
             else
